@@ -1,19 +1,36 @@
 //
-//  ContentView.swift
+//  DiscoverView.swift
 //  Cookable
 //
-//  Created by Harshali Chaudhari on 20/09/25.
+//  Created by Harshali Chaudhari on 21/09/25.
 //
+
 import SwiftUI
 
-struct ContentView: View {
-    @StateObject private var store = RecipeStore()
-    @State private var searchText: String = ""
+struct DiscoverView: View {
+    @EnvironmentObject private var store: RecipeStore
+    @Environment(AppSettings.self) private var settings
     @State private var selectedCategory: String = "All"
-    @State private var isSearchVisible: Bool = false
+
+    // MARK: - Section Filtering Logic
+    private var trending: [Recipe] {
+        store.recipes.sorted { $0.rating > $1.rating }.prefix(8).map { $0 }
+    }
+    private var quickMeals: [Recipe] {
+        store.recipes.filter { $0.cookTimeMinutes <= 25 }.prefix(8).map { $0 }
+    }
+    private var seasonal: [Recipe] {
+        // For demo: use random selection
+        store.recipes.shuffled().prefix(8).map { $0 }
+    }
+    private var newRecipes: [Recipe] {
+        store.recipes.sorted { $0.id.uuidString > $1.id.uuidString }.prefix(8).map { $0 }
+    }
 
     private var filteredRecipes: [Recipe] {
-        RecipeFiltering.filter(recipes: store.recipes, category: selectedCategory, searchText: searchText)
+        // Allergy exclusion is applied inside RecipeFiltering.filter.
+        _ = settings.allergiesJSON
+        return RecipeFiltering.filter(recipes: store.recipes, category: selectedCategory, searchText: "")
     }
 
     var body: some View {
@@ -35,8 +52,7 @@ struct ContentView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
-                        Button("Retry") { Task { await store.loadInitial() } }
-                            .buttonStyle(.borderedProminent)
+                        CButton(title: "Retry", kind: .primary) { await store.loadInitial() }
                     }
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -44,10 +60,6 @@ struct ContentView: View {
                     ScrollView {
                         VStack(spacing: 16) {
                             header
-                            if isSearchVisible || !searchText.isEmpty {
-                                searchBar
-                                    .transition(.move(edge: .top).combined(with: .opacity))
-                            }
                             categoriesBar
 
                             if filteredRecipes.isEmpty {
@@ -57,17 +69,33 @@ struct ContentView: View {
                                         .foregroundStyle(.secondary)
                                     Text("No recipes in this category")
                                         .font(.headline)
-                                    if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                        Text("Try clearing search or using different keywords.")
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                            .multilineTextAlignment(.center)
-                                    }
                                 }
                                 .padding(.vertical, 40)
                                 .frame(maxWidth: .infinity)
                             } else {
-                                recipesGrid
+                                // Sectioned grid
+                                ForEach(sectionedData, id: \.title) { section in
+                                    if !section.recipes.isEmpty {
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text(section.title)
+                                                .font(.title2.bold())
+                                                .padding(.horizontal)
+                                                .padding(.top, 8)
+                                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 16)], spacing: 16) {
+                                                ForEach(section.recipes) { recipe in
+                                                    NavigationLink {
+                                                        RecipeDetailView(recipe: recipe)
+                                                    } label: {
+                                                        RecipeCardView(recipe: recipe)
+                                                    }
+                                                    .buttonStyle(.plain)
+                                                }
+                                            }
+                                            .padding(.horizontal)
+                                            .padding(.bottom, 8)
+                                        }
+                                    }
+                                }
                             }
                         }
                         .padding(.top, 8)
@@ -83,45 +111,12 @@ struct ContentView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Discover Receipes")
+                Text("Discover Recipes")
                     .font(.largeTitle.bold())
                 Text("Delicious recipes for every day")
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button {
-                withAnimation(.snappy) {
-                    isSearchVisible.toggle()
-                }
-            } label: {
-                Image(systemName: "magnifyingglass.circle.fill")
-                    .font(.system(size: 32))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.tint)
-                    .contentTransition(.symbolEffect(.replace))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isSearchVisible ? "Hide search" : "Show search")
-        }
-        .padding(.horizontal)
-    }
-
-    private var searchBar: some View {
-        HStack(spacing: 12) {
-            HStack {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search recipes, ingredients…", text: $searchText)
-                    .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
-                if !searchText.isEmpty {
-                    Button { searchText = "" } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(12)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .padding(.horizontal)
     }
@@ -151,23 +146,24 @@ struct ContentView: View {
         }
     }
 
-    private var recipesGrid: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 16)], spacing: 16) {
-            ForEach(filteredRecipes) { recipe in
-                NavigationLink {
-                    RecipeDetailView(recipe: recipe)
-                } label: {
-                    RecipeCardView(recipe: recipe)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal)
-        .padding(.bottom, 24)
+    private struct SectionData: Identifiable {
+        let id = UUID()
+        let title: String
+        let recipes: [Recipe]
+    }
+
+    private var sectionedData: [SectionData] {
+        [
+            SectionData(title: "Trending", recipes: trending),
+            SectionData(title: "New", recipes: newRecipes),
+            SectionData(title: "Seasonal", recipes: seasonal),
+            SectionData(title: "Quick Meals", recipes: quickMeals)
+        ]
     }
 }
 
 #Preview {
-    ContentView()
-        .preferredColorScheme(.dark)
+    DiscoverView()
+        .environmentObject(RecipeStore())
 }
+

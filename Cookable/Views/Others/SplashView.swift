@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SplashView: View {
-    @StateObject private var store = RecipeStore()
+    @EnvironmentObject private var store: RecipeStore
     @State private var isReady = false
 
     // Animation states
@@ -16,26 +16,24 @@ struct SplashView: View {
     @State private var subtitleOffset: CGFloat = 20
     @State private var subtitleOpacity: Double = 0
 
+    var onFinish: (() -> Void)? = nil
+
     var body: some View {
         Group {
             if isReady && !store.isLoading {
-                ContentView()
-                    .environmentObject(store)
+                Color.clear
+                    .onAppear { onFinish?() }
             } else {
                 ZStack {
-                    // Dark background to match app theme
                     Color.black.ignoresSafeArea()
-
                     VStack(spacing: 16) {
-                        // splash logo image above the title
                         Image("splashLogo")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 300, height: 300) // Adjust as needed
+                            .frame(width: 300, height: 300)
                             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                             .scaleEffect(appear ? 1.0 : 0.92)
 
-                        // App name with simple scale/opacity animation
                         Text("Cookable")
                             .font(.system(size: 46, weight: .bold, design: .rounded))
                             .kerning(1.0)
@@ -44,7 +42,6 @@ struct SplashView: View {
                             .opacity(appear ? 1.0 : 0.0)
                             .animation(.spring(response: 0.8, dampingFraction: 0.8, blendDuration: 0.3), value: appear)
 
-                        // Informational subtitle that slides in
                         Text("Discover delicious recipes, save favorites, and cook with confidence.")
                             .font(.system(size: 16, weight: .medium, design: .rounded))
                             .foregroundStyle(.white.opacity(0.85))
@@ -57,12 +54,9 @@ struct SplashView: View {
                     }
                 }
                 .task {
-                    // Trigger staged animations
                     appear = true
                     subtitleOffset = 0
                     subtitleOpacity = 1
-
-                    // Keep splash visible briefly and allow initial fetch to start
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
                     isReady = true
                 }
@@ -70,8 +64,4 @@ struct SplashView: View {
         }
         .preferredColorScheme(.dark)
     }
-}
-
-#Preview {
-    SplashView()
 }

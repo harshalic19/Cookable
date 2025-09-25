@@ -1,121 +1,138 @@
 # Cookable
 
-Cookable is a modern SwiftUI app for iOS that helps you discover, filter, and browse delicious recipes, view details, and get inspired for everyday cooking.
-
-- **Platform:** iOS (SwiftUI, Swift Concurrency, iOS 17+)
-- **Minimum Xcode:** 16+ (uses Swift 6 features)
-- **Data Source:** TheMealDB (public API, no API key required)
-
----
+Cookable is a SwiftUI app for iOS and iPadOS that helps you save, organize, and revisit your favorite recipes. Group favorites into custom collections, quickly browse counts, and dive into collection details with a clean, native interface powered by SwiftData.
 
 ## Features
 
-- **Splash screen** with animated vector logo and onboarding message
-- **Browse recipes** in an adaptive grid layout
-- **Filter by category:** All, Veg, Non-Veg, and more
-- **Full-text search** across title, subtitle, and ingredients
-- **Recipe details:** Large image, quick facts, ingredients tags, step-by-step instructions
-- **Resilient networking:** Error handling and retry for network issues
-- **Dark mode** styling by default
+- SwiftUI app for iOS/iPadOS with SwiftData persistence
+- Discover and search recipes (TheMealDB API)
+- Recipe detail: image, meta (time/calories/rating), steps, ingredient tags
+- Favorites: save/remove recipes
+- Collections: organize favorites into named groups; view counts and details
+- Shopping List: add items (manual/from recipe), mark bought, assign to recipe
+- Sort shopping list by Recipe, Aisle, or A–Z; hide bought; bulk actions; share
+- Profile: Apple/Google sign-in UI, recent history, personalization (diet/allergies)
+- Appearance: system/light/dark theme, accent color
+- Export data: share favorites and shopping list as text
+- Advanced settings: notifications toggle, iCloud Sync toggle (UI only; CloudKit not wired)
 
----
+## Requirements
 
-## Screens
+- iOS 17.0+ / iPadOS 17.0+
+- Xcode 15.0+
+- Swift 5.9+
+- SwiftData for persistence
 
-- **SplashView:** Animated logo, onboarding text, and initial data load
-- **ContentView:**
-  - Header, search bar, horizontally scrollable categories bar
-  - Adaptive recipe grid
-  - Loading & error states handled gracefully
-- **RecipeCardView:** Rich grid cards with images, rating, and quick info
-- **RecipeDetailView:** Big header image, metadata, tagged ingredients, and split steps in styled blocks
+## Project Structure (High-Level)
 
----
+- App / Entry
+  - SwiftUI App entry point and root navigation/tab configuration.
 
-## Architecture & Key Files
+- Views
+  - SavedCollectionsView: Lists unique collection names derived from favorite recipes. Tapping a collection navigates to a detail view and shows the number of items in each.
+  - CollectionDetailView: Displays the recipes/items belonging to a specific collection.
 
-- **Views**
-  - `SplashView.swift`: Handles splash animation and onboarding
-  - `ContentView.swift`: Main screen with search, filter, and grid
-  - `RecipeCardView.swift`: Grid item card for each recipe
-  - `RecipeDetailView.swift`: Full-screen detailed recipe display
-  - `TagCapsule.swift` & `TagFlowLayout.swift`: Custom capsule/tags UI for ingredients and categories
+- Models
+  - FavoriteRecipe: A SwiftData model representing a saved recipe. Typically includes fields such as title, source/URL, image, notes, and an optional collection string.
 
-- **Models & Data**
-  - `Recipe.swift`: Domain model (`Identifiable`, `Codable`, `Sendable`); used throughout the app
-  - `Meal.swift`: Raw DTO model matching TheMealDB structure, with ingredient/measure extraction logic
-  - `MealsResponse.swift`: Simple wrapper for array decoding from API
+- Persistence
+  - SwiftData model container and integration via `@Query` and `@Environment(\.modelContext)`.
 
-- **State & Networking**
-  - `RecipeStore.swift`: Main `ObservableObject` for recipes, loading/error states, categories, and mapping API data to domain recipes. Loads recipes on startup and exposes a category-symbol helper.
-  - `APIClient.swift`: Networking logic (async/await, typed throws), fetches and decodes meals, handles errors.
+## Notable Implementation Details
 
-- **Utils**
-  - `ReceipeFiltering.swift`: Static `RecipeFiltering` enum for filtering recipes by category and search text.
+- SwiftUI & SwiftData
+  - Uses `@Query` to fetch `FavoriteRecipe` objects directly in views.
+  - Derives a unique, sorted list of collection names by trimming whitespace and filtering empty strings.
+  - Uses `NavigationLink` to navigate to `CollectionDetailView` for a selected collection.
+  - Hides the tab bar on deeper screens via `.toolbar(.hidden, for: .tabBar)`.
 
----
+- Collections Logic
+  - Collection names are computed from favorites where `collection` is non-empty.
+  - Per-collection item counts are computed by filtering favorites at render time.
 
-## Data Flow
+## Screenshots
 
-1. **SplashView** creates and loads a `RecipeStore`, showing onboarding animation.
-2. **RecipeStore** automatically loads recipes from TheMealDB with `APIClient`.
-3. Meals are mapped into local `Recipe` models (with random cook time/calories/rating for demo purposes).
-4. **ContentView** observes `RecipeStore` for updates, loading/error, and user interaction.
-5. Filtering and searching is performed locally in-memory using `RecipeFiltering`.
+- Home / Favorites
+- Collections list
+- Collection detail
+- Recipe detail
 
----
+## Testing
 
-## Category Handling
-
-- The `RecipeStore` exposes a fixed list of categories, including “All”, “Veg”, “Non-Veg” (maps to vegan or not), and all primary TheMealDB categories.
-- Symbols for each category are provided via `symbol(for:)` for UI display.
-
----
-
-## UI Details
-
-- **Ingredients** are shown in a responsive tag/capsule layout using custom `TagCapsule` and `TagFlowLayout` views.
-- **Steps** are split and styled using robust logic that adapts to newlines, bullet points, numbers, or sentences for clean display.
-- All main UI is styled for dark mode by default and uses system-provided backgrounds.
-
----
-
-## Vector Assets
-
-- The splash logo (`splashLogo`) is a PDF vector asset, sized and clipped responsively.
-- Tinting can be enabled via asset catalog ("Template Image") and `.renderingMode(.template)` if desired.
-
----
-
-## Project Structure
-
-- **CookableApp.swift:** App entry point
-- **Views:** `SplashView.swift`, `ContentView.swift`, `RecipeCardView.swift`, `RecipeDetailView.swift`, `TagCapsule.swift`, `TagFlowLayout.swift`
-- **Models:** `Recipe.swift`, `Meal.swift`, `MealsResponse.swift`
-- **Store:** `RecipeStore.swift`
-- **Networking:** `APIClient.swift`
-- **Utils:** `ReceipeFiltering.swift`
-- **Assets:** `splashLogo.pdf` and recipe images loaded from TheMealDB
-
----
-
-## Setup & Running
-
-1. Clone this repository.
-2. Open `Cookable.xcodeproj` in Xcode 16+.
-3. Build and run on any iOS 17+ device or simulator.
-
-No API key is required. The app uses the TheMealDB’s public endpoints.
-
----
-
-## Filtering Logic
-
-Filtering is performed on device by the static `RecipeFiltering` enum:
+You can use the Swift Testing framework (Swift 5.9+) or XCTest. Example using Swift Testing:
 
 ```swift
-let filtered = RecipeFiltering.filter(
-    recipes: allRecipes,
-    category: "Veg",
-    searchText: "pasta"
-)
+import Testing
+
+@Suite("Collections Logic")
+struct CollectionsTests {
+    @Test("Unique collection names are sorted and non-empty")
+    func uniqueCollections() async throws {
+        let raw = ["Dinner", "  Breakfast  ", "", "dinner", "Lunch"]
+        let trimmed = raw.compactMap { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        let unique = Set(trimmed)
+        let sorted = unique.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+
+        #expect(sorted.first == "Breakfast")
+        #expect(sorted.contains("Dinner"))
+    }
+}
+```
+
+## Getting Started
+
+1. Clone the repository:
+
+git clone https://github.com/harshalic19/Cookable.git
+
+cd Cookable
+
+open Cookable.xcodeproj
+
+- If using a workspace:
+open Cookable.xcworkspace
+
+3. Select the “Cookable” scheme and a simulator or device.
+
+4. Build and run:
+   - Press Cmd+R in Xcode.
+
+Run tests with Cmd+U in Xcode.
+
+## Data & Migrations
+
+- Cookable uses SwiftData for persistence.
+- When changing model properties or relationships, consider schema versioning and migrations.
+- Test upgrades on devices/simulators with existing data before release.
+
+## Accessibility & Localization
+
+- Uses system fonts and SF Symbols for accessibility and consistency.
+- Consider adding localized strings for non-English locales via Localizable.strings.
+
+Roadmap Ideas
+
+- Enhance Profile
+- Add Cooking Mode (step-by-step, hands-free)
+- Meal Planner (weekly planning + auto shopping list)
+- Smart Search (more filters)
+- AI Recipe Suggestions (based on ingredients & preferences)
+- Nutrition Info & Tracking
+- Community Sharing & Collections
+- Premium Features (meal planning, offline mode, grocery integration)
+
+## Contributing
+
+Contributions are welcome.
+- Open an issue describing your proposal or bug.
+- Fork the repo and create a feature branch.
+- Submit a pull request with a clear description and screenshots if applicable.
+
+## License
+
+This project is licensed under the MIT License. See LICENSE for details.
+
+## Acknowledgements
+
+- SwiftUI and SwiftData by Apple
+- SF Symbols for icons

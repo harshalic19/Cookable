@@ -16,13 +16,19 @@ public struct TagCapsule: View {
 
         var paddings: (horizontal: CGFloat, vertical: CGFloat) {
             switch self {
-            case .compact: return (10, 4)
+            case .compact: return (10, 6) // match legacy SelectableChip
             case .regular: return (12, 6)
             case .large:   return (14, 8)
             }
         }
 
-        var font: Font { .subheadline.weight(.semibold) }
+        var font: Font {
+            switch self {
+            case .compact: return .footnote.weight(.semibold)     // match legacy SelectableChip
+            case .regular: return .subheadline.weight(.semibold)
+            case .large:   return .callout.weight(.semibold)
+            }
+        }
     }
 
     public enum ShapeStyle {
@@ -55,6 +61,7 @@ public struct TagCapsule: View {
         case filledAccent
         case outlinedNeutral
         case outlinedAccent
+        case selectableChip
         case custom(foreground: Color, background: Color, border: Color? = nil)
 
         // Name the tuple elements so we can use colors.fg, colors.bg, colors.border
@@ -71,6 +78,12 @@ public struct TagCapsule: View {
                 base = (fg: .primary, bg: .clear, border: Color.secondary.opacity(0.25))
             case .outlinedAccent:
                 base = (fg: .accentColor, bg: .clear, border: Color.accentColor)
+            case .selectableChip:
+                // Matches legacy SelectableChip look
+                let fg: Color = .primary
+                let bg: Color = isSelected ? Color.accentColor.opacity(0.15) : Color(.secondarySystemBackground)
+                let border: Color = isSelected ? .accentColor : Color.black.opacity(0.08)
+                base = (fg: fg, bg: bg, border: border)
             case .custom(let fg, let bg, let border):
                 base = (fg: fg, bg: bg, border: border)
             }
@@ -140,6 +153,7 @@ public struct TagCapsule: View {
                 onTap?()
             }
             .accessibilityLabel(accessibilityLabel ?? text)
+            .accessibilityAddTraits(.isButton)
     }
 
     @ViewBuilder
@@ -163,6 +177,7 @@ public struct TagCapsule: View {
         TagCapsule(text: "Step 1", size: .compact)
         TagCapsule(text: "Favorite", style: .filledAccent, leadingSystemImage: "heart.fill", isSelected: true)
         TagCapsule(text: "Custom", size: .large, style: .custom(foreground: .orange, background: .orange.opacity(0.15), border: .orange), shape: .rounded(cornerRadius: 10))
+        TagCapsule(text: "Selectable", size: .compact, style: .selectableChip, leadingSystemImage: "leaf", isSelected: true)
     }
     .padding()
     .background(Color(.systemGroupedBackground))
