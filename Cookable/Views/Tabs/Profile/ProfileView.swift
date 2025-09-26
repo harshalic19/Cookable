@@ -188,8 +188,20 @@ struct ProfileView: View {
     }
     
     private var SignOutSection: some View {
-        Section(header: Text("")) {
-            CButton(title: "Sign Out", kind: .destructive) { signOut() }
+        Section {
+            CButton(
+                title: "Sign Out",
+                systemImage: "rectangle.portrait.and.arrow.right",
+                kind: .plain,
+                size: .regular,
+                font: .body
+            ) {
+                signOut()
+            }
+            // Ensure the row uses the system foreground (adapts to light/dark)
+            .foregroundStyle(.primary)
+            // Align with default Form row insets instead of using negative padding
+            .listRowInsets(EdgeInsets(top: 6, leading: 5, bottom: 6, trailing: 16))
         }
     }
 
