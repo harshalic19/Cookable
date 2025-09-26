@@ -50,13 +50,6 @@ Cookable is a SwiftUI app for iOS and iPadOS that helps you save, organize, and 
   - Collection names are computed from favorites where `collection` is non-empty.
   - Per-collection item counts are computed by filtering favorites at render time.
 
-## Screenshots
-
-- Home / Favorites
-- Collections list
-- Collection detail
-- Recipe detail
-
 ## Testing
 
 You can use the Swift Testing framework (Swift 5.9+) or XCTest. Example using Swift Testing:
