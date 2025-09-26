@@ -23,6 +23,12 @@ struct RecipeDetailView: View {
         favorites.contains(where: { $0.recipeID == recipe.id })
     }
 
+    // Reminder creation (store is owned here)
+    @StateObject private var remindersStore = RemindersStore()
+    @State private var showingReminderSheet = false
+    @State private var isSchedulingReminder = false
+    @State private var reminderError: String?
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -167,10 +173,61 @@ struct RecipeDetailView: View {
                     }
                 }
 
-                Spacer(minLength: 24)
+                Spacer(minLength: 80) // leave room for floating button
             }
             .padding(.top)
             .background(Color(.systemGroupedBackground))
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Button {
+                showingReminderSheet = true
+            } label: {
+                Image(systemName: "bell.badge.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(Circle().fill(Color.accentColor))
+                    .shadow(radius: 4, y: 2)
+            }
+            .padding(.trailing, 20)
+            .padding(.bottom, 24)
+            .accessibilityLabel("Add reminder for this recipe")
+        }
+        .sheet(isPresented: $showingReminderSheet) {
+            // Pre-fill editor with recipe title and a default time (1 hour from now)
+            let initial = Reminder(
+                title: recipe.title,
+                date: Calendar.current.date(byAdding: .hour, value: 1, to: Date()) ?? Date(),
+                tag: nil
+            )
+            ReminderEditor(
+                reminder: initial,
+                onSave: { r in
+                    Task {
+                        isSchedulingReminder = true
+                        reminderError = nil
+                        let toAdd = Reminder(
+                            id: r.id,
+                            title: r.title,
+                            date: r.date,
+                            tag: r.tag,
+                            notificationID: r.notificationID,
+                            linkedRecipeID: recipe.id
+                        )
+                        do {
+                            try await remindersStore.add(toAdd)
+                            showingReminderSheet = false
+                        } catch {
+                            reminderError = error.localizedDescription
+                        }
+                        isSchedulingReminder = false
+                    }
+                },
+                onCancel: {
+                    showingReminderSheet = false
+                }
+            )
+            .presentationDetents([.medium, .large])
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
